@@ -130,6 +130,7 @@
         worldWidth: 2000,
         collected: [],
         playerFireTimer: 0,
+        enemyFireTimer: 0,
         spaceKey: null,
 
         preload: function() {
@@ -176,7 +177,6 @@
             this.playerRockets.createMultiple(20, 'rocket');
             this.playerRockets.setAll('anchor.x', 0.5);
             this.playerRockets.setAll('anchor.y', 0.5);
-            this.playerRockets.setAll('scale.x', -1); // reverse them
             this.playerRockets.setAll('outOfBoundsKill', true);
             this.playerRockets.setAll('checkWorldBounds', true);
 
@@ -185,7 +185,7 @@
             this.enemieRockets.physicsBodyType = Phaser.Physics.ARCADE;
             this.enemieRockets.createMultiple(20, 'rocket');
             this.enemieRockets.setAll('anchor.x', 0.5);
-            //this.enemieRockets.setAll('scale.x', -1); // reverse them
+            this.enemieRockets.setAll('scale.x', -1); // reverse them
             this.enemieRockets.setAll('anchor.y', 0.5);
             this.enemieRockets.setAll('outOfBoundsKill', true);
             this.enemieRockets.setAll('checkWorldBounds', true);
@@ -230,9 +230,13 @@
             {
                 this.fireRocket();
             }
-            //console.log(this.backdrop.position.x);
 
-//            game.physics.arcade.collide(this.player, this.platforms);
+            // Enemy launch
+            if (game.time.now > this.enemyFireTimer)
+            {
+                this.enemyLaunch();
+            }
+
             game.physics.arcade.overlap(this.enemies, this.player, this.enemyHitsPlayer, null, this);
             game.physics.arcade.overlap(this.planets, this.player, this.planetEncounter, null, this);
             game.physics.arcade.overlap(this.playerRockets, this.enemies, this.hitanememy, null, this);
@@ -300,6 +304,24 @@
             // if within sight only
             // and player x is not greater than enemy x i.e gone past
 
+
+            this.enemies.forEach(function (en){
+                if ((this.player.body.position.x > en.position.x) === false)
+                {
+                    var dis = Math.abs(this.player.position.x - en.position.x);
+                    if (dis < 300)
+                    {
+                        var rk = this.enemieRockets.getFirstExists(false);
+
+                        if (rk)
+                        {
+                            rk.reset(en.position.x - 40, en.position.y);
+                            rk.body.velocity.x = -200;
+                            this.enemyFireTimer = game.time.now + 5000;
+                        }
+                    }
+                }
+            }, this)
         }
 
     };
