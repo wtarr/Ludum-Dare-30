@@ -3,6 +3,8 @@
  */
 (function () {
 
+    var level = 1;
+
     var game = new Phaser.Game(800, 600, Phaser.AUTO, 'content');
 
     var ConnectedWorlds = {};
@@ -72,6 +74,7 @@
             game.load.image('ship', 'assets/ship.png');
             game.load.image('enemy', 'assets/enemy.png');
             game.load.image('rocket', 'assets/rocket.png');
+            game.load.text('level1', 'assets/level1.json');
 
             game.load.start();
         },
@@ -109,13 +112,13 @@
 
         moveon : function() {
             game.input.keyboard.onDownCallback = null; // remove the callback
-            game.state.start('level1', true, false); // start the game
+            game.state.start('level', true, false); // start the game
         }
     };
 
     // Level1
-    ConnectedWorlds.level1 = function(){};
-    ConnectedWorlds.level1.prototype = {
+    ConnectedWorlds.level = function(){};
+    ConnectedWorlds.level.prototype = {
 
         player: null,
         cursors: null,
@@ -128,10 +131,12 @@
         playerRockets: null,
         movespeed: 100,
         worldWidth: 2000,
+        worldHeight: 600,
         collected: [],
         playerFireTimer: 0,
         enemyFireTimer: 0,
         spaceKey: null,
+        leveldata : null,
 
         preload: function() {
 
@@ -139,25 +144,31 @@
 
         create: function() {
 
-            game.physics.startSystem(Phaser.Physics.P2JS);
 
-            game.world.setBounds(0,0,this.worldWidth, 600);
+            if (level == 1) {
+                this.leveldata = JSON.parse(game.cache.getText('level1'));
+            }
+
+            game.physics.startSystem(Phaser.Physics.ARCADE);
+
+            game.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
 
             //game.add.sprite(0, 0, 'starfield');
             this.backdrop = game.add.tileSprite(0, 0, 800, 600, 'starfield');
             this.backdrop.fixedToCamera = true;
 
             this.planets = game.add.group();
-            this.planets.physicsBodyType = Phaser.Physics.arcade;
+            this.planets.physicsBodyType = Phaser.Physics.ARCADE;
             this.planets.enableBody = true;
 
-            var p1 = this.planets.create(100, 200, 'planet');
-            p1.scale.setTo(0.25, 0.25);
-            p1.name = "p1";
+            var planetsarray = this.leveldata.planetsMAP;
 
-            var p1 = this.planets.create(700, 250, 'planet');
-            p1.scale.setTo(0.25, 0.25);
-            p1.name = "p2";
+            for (var i = 0; i < planetsarray.length; i++) {
+                var p = this.planets.create(planetsarray[i].x, planetsarray[i].y, 'planet');
+                p.scale.setTo(0.25, 0.25);
+                p.name = planetsarray[i].name;
+            }
+            ;
 
             this.player = game.add.sprite(150, 300, 'ship');
             this.player.anchor.setTo(0.5, 0.5);
@@ -169,7 +180,17 @@
             this.enemies = game.add.group();
             this.enemies.enableBody = true;
             this.enemies.physicsBodyType = Phaser.Physics.arcade;
-            this.enemies.create(600, 200, 'enemy');
+
+
+            for (var x = 0; x < this.leveldata.enemys.length; x++)
+            {
+                var e = this.enemies.create(this.leveldata.enemys[x].x,
+                    this.leveldata.enemys[x].y, 'enemy');
+                e.anchor.setTo(0.5, 0.5);
+                // give them random movement
+                game.add.tween(e).to({ y: Math.floor(Math.random() * 500) + 1 }, 5000 + Math.random()*3000, Phaser.Easing.Linear.None, true, 0, 1000, true);
+
+            }
 
             this.playerRockets = game.add.group();
             this.playerRockets.enableBody = true;
@@ -240,6 +261,7 @@
             game.physics.arcade.overlap(this.enemies, this.player, this.enemyHitsPlayer, null, this);
             game.physics.arcade.overlap(this.planets, this.player, this.planetEncounter, null, this);
             game.physics.arcade.overlap(this.playerRockets, this.enemies, this.hitanememy, null, this);
+            //game.physics.arcade.overlap(this.playerRockets, this.enemies, this.hitanememy, null, this);
 
 
             this.fuelText.setText('Fuel: ' + this.fuel.toFixed(0)  + '%');
@@ -256,17 +278,27 @@
             game.debug.text(game.time.fps || '--', 2, 14, "#00ff00");
             //game.debug.body(this.player);
         },
-        enemyHitsPlayer: function () {
-               console.log("Hit");
+        enemyHitsPlayer: function (player, enemy) {
+            enemy.kill();
+
+            var t = game.add.text(player.position.x, player.position.y, '- ' + this.leveldata.enemyclash, { fill: '#C48923'});
+
+            var tw = game.add.tween(t).to( { y: -1 }, 1000, Phaser.Easing.Cubic.Out, true, 0, false);
+            tw.onComplete.add(function() {
+                this.fuel -= this.leveldata.enemyclash;
+                game.world.remove(t)
+            }, this);
+
+
         },
 
         planetEncounter : function(player, planet) {
             if (!isInArray(this.collected, planet.name)) {
-                var t = game.add.text(planet.position.x, planet.position.y, '+ 10', { fill: '#ffffff'});
+                var t = game.add.text(planet.position.x, planet.position.y, '+ ' + this.leveldata.planet, { fill: '#ffffff'});
 
                 var tw = game.add.tween(t).to( { y: -1 }, 1000, Phaser.Easing.Cubic.Out, true, 0, false);
                 tw.onComplete.add(function() {
-                    this.fuel += 10;
+                    this.fuel += this.leveldata.planet;
                     game.world.remove(t)
                 }, this);
 
@@ -293,6 +325,13 @@
             enemy.kill();
             this.fuel += 20; // steal their fuel too :-D
             // play explosion
+            var t = game.add.text(enemy.position.x, enemy.position.y, '+ ' + this.leveldata.enemyhit, { fill: '#ffffff'});
+
+            var tw = game.add.tween(t).to( { y: -1 }, 1000, Phaser.Easing.Cubic.Out, true, 0, false);
+            tw.onComplete.add(function() {
+                this.fuel += this.leveldata.enemyhit;
+                game.world.remove(t)
+            }, this);
         },
 
         playerhitbyenemyorrocket : function(other, player)
@@ -339,7 +378,7 @@
         update : function() {
             if (this.space.isDown)
             {
-                game.state.start('level1', true, false);
+                game.state.start('level', true, false);
             }
         }
     };
@@ -352,7 +391,7 @@
     game.state.add('boot', ConnectedWorlds.boot);
     game.state.add('preloader', ConnectedWorlds.preloader);
     game.state.add('mainmenu', ConnectedWorlds.mainmenu);
-    game.state.add('level1', ConnectedWorlds.level1);
+    game.state.add('level', ConnectedWorlds.level);
     game.state.add('gameover', ConnectedWorlds.gameover);
     game.state.start('boot');
 
