@@ -422,13 +422,14 @@
             if (game.time.now > this.playerFireTimer) {
                 var rocket = this.playerRockets.getFirstExists(false);
 
-                if (rocket)
+                if (rocket && this.fuel > 11)
                 {
                     rocket.reset(this.player.x + 4, this.player.y);
                     rocket.body.velocity.x = 200;
                     this.playerFireTimer = game.time.now + 1000;
                     this.rocketlaunchaudio.play();
                     rocket.lifespan = 3000;
+                    this.fuel -= 10;
                 }
             }
         },
