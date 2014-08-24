@@ -83,6 +83,7 @@
             game.load.image('smoke', 'assets/smoke.png');
             game.load.image('explosion', 'assets/explosion.png');
             game.load.image('title', 'assets/titlescreen.png');
+            game.load.image('thisway', 'assets/thisway.png');
 
             // level data
             game.load.text('level1', 'assets/level1.json');
@@ -204,6 +205,10 @@
             this.player.anchor.setTo(0.5, 0.5);
             this.player.enableBody = true;
             game.physics.arcade.enable(this.player);
+
+
+            var dir = game.add.sprite(1980, 300, 'thisway');
+            dir.anchor.setTo(0.5, 0.5);
 
             game.camera.follow(this.player, Phaser.Camera.FOLLOW_PLATFORMER);
 
