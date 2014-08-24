@@ -70,11 +70,18 @@
         loadThisStuff : function() {
 
             game.load.image('starfield', 'assets/starField.jpg');
-            game.load.image('planet', 'assets/planet.png');
+            //game.load.image('planet', 'assets/planet.png');
+            game.load.spritesheet('pSpin','assets/planetspritesheet.png', 100, 100);
             game.load.image('ship', 'assets/ship.png');
             game.load.image('enemy', 'assets/enemy.png');
             game.load.image('rocket', 'assets/rocket.png');
+            game.load.image('smoke', 'assets/smoke.png');
             game.load.text('level1', 'assets/level1.json');
+            // audio
+            game.load.audio('rocketlaunch', 'assets/rocketlaunch.wav');
+            game.load.audio('collect', 'assets/collect.wav');
+            game.load.audio('hit', 'assets/hit.wav');
+
 
             game.load.start();
         },
@@ -137,6 +144,10 @@
         enemyFireTimer: 0,
         spaceKey: null,
         leveldata : null,
+        playertrailemitter: null,
+        rocketlaunchaudio: null,
+        powerupaudio: null,
+        hitaudio: null,
 
         preload: function() {
 
@@ -151,6 +162,10 @@
 
             game.physics.startSystem(Phaser.Physics.ARCADE);
 
+            this.rocketlaunchaudio = game.add.audio('rocketlaunch');
+            this.powerupaudio = game.add.audio('collect');
+            this.hitaudio = game.add.audio('hit');
+
             game.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
 
             //game.add.sprite(0, 0, 'starfield');
@@ -163,12 +178,21 @@
 
             var planetsarray = this.leveldata.planetsMAP;
 
+
+
             for (var i = 0; i < planetsarray.length; i++) {
-                var p = this.planets.create(planetsarray[i].x, planetsarray[i].y, 'planet');
-                p.scale.setTo(0.25, 0.25);
+                var p = this.planets.create(planetsarray[i].x, planetsarray[i].y, 'pSpin');
+                //p.scale.setTo(0.25, 0.25);
                 p.name = planetsarray[i].name;
-            }
-            ;
+                p.animations.add('spin');
+                p.animations.play('spin', Math.floor(Math.random() * 10) + 1, true);
+                //game.add.tween(p).to( { alpha: 0.8 }, 2000, Phaser.Easing.Linear.None, true, 0, 1000, true);
+                };
+
+//            var frameNames = Phaser.Animation.generateFrameNames('planet', 0, 24, '', 4);
+//            this.planets.callAll('animations.add', 'animations', 'spin', frameNames, 30, true, false);
+//            this.planets.callAll('play', null, 'spin');
+
 
             this.player = game.add.sprite(150, 300, 'ship');
             this.player.anchor.setTo(0.5, 0.5);
@@ -211,6 +235,19 @@
             this.enemieRockets.setAll('outOfBoundsKill', true);
             this.enemieRockets.setAll('checkWorldBounds', true);
 
+            this.playertrailemitter = game.add.emitter
+            (this.player.body.x,
+            this.player.body.y, 5000);
+            this.playertrailemitter.makeParticles('smoke');
+            this.playertrailemitter.bringToTop = true;
+            this.playertrailemitter.setRotation(20, 40);
+            this.playertrailemitter.setAlpha(0.1, 0.3, 400, Phaser.Easing.Quintic.Out);
+            this.playertrailemitter.setScale(0.1, 0.7, 0.1, 0.7, 5000, Phaser.Easing.Quintic.Out);
+            this.playertrailemitter.setXSpeed(-100, -300);
+            this.playertrailemitter.gravity = -100;
+
+            this.playertrailemitter.start(false, 5000, 50);
+
             this.spaceKey = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
 
             this.fuelText = game.add.text(10, 10, 'Fuel: ' + this.fuel + '%', {fill : '#ffffff'});
@@ -224,16 +261,21 @@
             this.player.body.velocity.x = 0;
             this.player.body.velocity.y = 0;
 
+            this.playertrailemitter.on = false;
+            this.playertrailemitter.x = this.player.body.center.x - 20;
+            this.playertrailemitter.y = this.player.body.center.y ;
 
             if (this.cursors.up.isDown)
             {
                 //game.camera.y -= 4;
                 this.player.body.velocity.y -= this.movespeed;
                 this.fuel -= 0.1;
+                this.playertrailemitter.on = true;
             } else if (this.cursors.down.isDown)
             {
                 //game.camera.y += 4;
                 this.player.body.velocity.y += this.movespeed;
+                this.playertrailemitter.on = true;
                 this.fuel -= 0.1;
             }
 
@@ -242,6 +284,7 @@
                 //game.camera.x += 4;
                 this.backdrop.autoScroll(-5, 0);
                 this.player.body.velocity.x += this.movespeed;
+                this.playertrailemitter.on = true;
                 this.fuel -= 0.2;
             }else {
                 this.backdrop.stopScroll();
@@ -261,7 +304,7 @@
             game.physics.arcade.overlap(this.enemies, this.player, this.enemyHitsPlayer, null, this);
             game.physics.arcade.overlap(this.planets, this.player, this.planetEncounter, null, this);
             game.physics.arcade.overlap(this.playerRockets, this.enemies, this.hitanememy, null, this);
-            //game.physics.arcade.overlap(this.playerRockets, this.enemies, this.hitanememy, null, this);
+            game.physics.arcade.overlap(this.enemieRockets, this.player, this.playerhitbyenemyorrocket, null, this);
 
 
             this.fuelText.setText('Fuel: ' + this.fuel.toFixed(0)  + '%');
@@ -279,7 +322,8 @@
             //game.debug.body(this.player);
         },
         enemyHitsPlayer: function (player, enemy) {
-            enemy.kill();
+            enemy.destroy();
+            this.hitaudio.play();
 
             var t = game.add.text(player.position.x, player.position.y, '- ' + this.leveldata.enemyclash, { fill: '#C48923'});
 
@@ -294,12 +338,13 @@
 
         planetEncounter : function(player, planet) {
             if (!isInArray(this.collected, planet.name)) {
+                this.powerupaudio.play();
                 var t = game.add.text(planet.position.x, planet.position.y, '+ ' + this.leveldata.planet, { fill: '#ffffff'});
 
                 var tw = game.add.tween(t).to( { y: -1 }, 1000, Phaser.Easing.Cubic.Out, true, 0, false);
                 tw.onComplete.add(function() {
                     this.fuel += this.leveldata.planet;
-                    game.world.remove(t)
+                    game.world.remove(t);
                 }, this);
 
                 this.collected.push(planet.name);
@@ -315,16 +360,17 @@
                 {
                     rocket.reset(this.player.x + 4, this.player.y);
                     rocket.body.velocity.x = 200;
-                    this.playerFireTimer = game.time.now + 200;
+                    this.playerFireTimer = game.time.now + 1000;
+                    this.rocketlaunchaudio.play();
                 }
             }
         },
 
         hitanememy : function(rocket, enemy) {
             rocket.kill();
-            enemy.kill();
-            this.fuel += 20; // steal their fuel too :-D
-            // play explosion
+            enemy.destroy();
+            this.hitaudio.play();
+            // todo play explosion
             var t = game.add.text(enemy.position.x, enemy.position.y, '+ ' + this.leveldata.enemyhit, { fill: '#ffffff'});
 
             var tw = game.add.tween(t).to( { y: -1 }, 1000, Phaser.Easing.Cubic.Out, true, 0, false);
@@ -334,8 +380,18 @@
             }, this);
         },
 
-        playerhitbyenemyorrocket : function(other, player)
+        playerhitbyenemyorrocket : function(player, rocket)
         {
+            rocket.kill();
+            this.hitaudio.play();
+            // todo play explosion
+            var t = game.add.text(player.position.x, player.position.y, '+ ' + this.leveldata.playerhit, { fill: '#C48923'});
+
+            var tw = game.add.tween(t).to( { y: -1 }, 1000, Phaser.Easing.Cubic.Out, true, 0, false);
+            tw.onComplete.add(function() {
+                this.fuel -= this.leveldata.playerhit;
+                game.world.remove(t)
+            }, this);
 
         },
 
