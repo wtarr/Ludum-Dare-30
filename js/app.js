@@ -16,10 +16,12 @@
     ConnectedWorlds.boot.prototype = {
 
         preload : function() {
-            game.time.advancedTiming = true;
+            //game.time.advancedTiming = true;
             game.load.image('loadingImg', './assets/loading.png');
         },
         create : function() {
+
+            game.add.text(10, 10, "Stand by ...", {fill : '#ffffff'});
             game.input.maxPointers = 1;
 
             this.stage.disableVisibilityChange = true;
