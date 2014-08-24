@@ -76,11 +76,14 @@
             game.load.image('enemy', 'assets/enemy.png');
             game.load.image('rocket', 'assets/rocket.png');
             game.load.image('smoke', 'assets/smoke.png');
+            game.load.image('explosion', 'assets/explosion.png');
+
             game.load.text('level1', 'assets/level1.json');
             // audio
             game.load.audio('rocketlaunch', 'assets/rocketlaunch.wav');
             game.load.audio('collect', 'assets/collect.wav');
             game.load.audio('hit', 'assets/hit.wav');
+            game.load.audio('mainlevel', 'assets/mainlevelmusic.mp3');
 
 
             game.load.start();
@@ -148,6 +151,7 @@
         rocketlaunchaudio: null,
         powerupaudio: null,
         hitaudio: null,
+        levelmusic: null,
 
         preload: function() {
 
@@ -165,6 +169,9 @@
             this.rocketlaunchaudio = game.add.audio('rocketlaunch');
             this.powerupaudio = game.add.audio('collect');
             this.hitaudio = game.add.audio('hit');
+            this.levelmusic = game.add.audio('mainlevel', 0.5, true);
+            this.levelmusic.play();
+
 
             game.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
 
@@ -301,19 +308,25 @@
                 this.enemyLaunch();
             }
 
+            if (this.player.body.y < 0 || this.player.body.y > 600)
+                this.fuel -= 10;
+
             game.physics.arcade.overlap(this.enemies, this.player, this.enemyHitsPlayer, null, this);
             game.physics.arcade.overlap(this.planets, this.player, this.planetEncounter, null, this);
             game.physics.arcade.overlap(this.playerRockets, this.enemies, this.hitanememy, null, this);
             game.physics.arcade.overlap(this.enemieRockets, this.player, this.playerhitbyenemyorrocket, null, this);
 
-
-            this.fuelText.setText('Fuel: ' + this.fuel.toFixed(0)  + '%');
+            if (this.fuel >= 0)
+                this.fuelText.setText('Fuel: ' + this.fuel.toFixed(0)  + '%');
+            else
+                this.fuelText.setText('Fuel: 0%');
 
             if (this.fuel <= 0)
             {
                 // reset
                 this.fuel = 100;
                 this.collected = [];
+                this.levelmusic.stop();
                 game.state.start('gameover', true, false); // game over screen
             }
         },
@@ -428,12 +441,13 @@
         space: null,
 
         create : function() {
-            this.text = game.add.text(32, 32, 'Game over\n\nPress spacebar to begin at Level 1', { fill: '#ffffff'});
+            this.text = game.add.text(32, 32, 'You ran out of fuel its Game over\n\nPress spacebar to begin again at Level 1', { fill: '#ffffff'});
             this.space = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
         },
         update : function() {
             if (this.space.isDown)
             {
+                level = 1;
                 game.state.start('level', true, false);
             }
         }
