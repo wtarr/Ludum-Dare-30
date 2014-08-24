@@ -8,6 +8,7 @@
 
     var game = new Phaser.Game(800, 600, Phaser.AUTO, 'content');
 
+
     var ConnectedWorlds = {};
 
     // Boot
@@ -49,6 +50,7 @@
 
         preload : function() {
             this.preloadBar = game.add.sprite(400, 300, 'loadingImg');
+            this.preloadBar.anchor.setTo(0.5, 0.5);
             game.load.setPreloadSprite(this.preloadBar);
 
             game.load.onLoadStart.add(this.loadStart, this);
@@ -78,6 +80,7 @@
             game.load.image('rocket', 'assets/rocket.png');
             game.load.image('smoke', 'assets/smoke.png');
             game.load.image('explosion', 'assets/explosion.png');
+            game.load.image('title', 'assets/titlescreen.png');
 
             // level data
             game.load.text('level1', 'assets/level1.json');
@@ -122,7 +125,8 @@
         create : function() {
             this.levelmusic = game.add.audio('intro', 0.5, true);
             this.levelmusic.play();
-            this.text = game.add.text(32, 32, 'Super awesome space Game\n\nConnected Worlds\n\nPress ENTER to start', { fill: '#ffffff'});
+            game.add.sprite(0, 20, 'title');
+            //this.text = game.add.text(32, 32, 'Super awesome space Game\n\nConnected Worlds\n\nPress ENTER to start', { fill: '#ffffff'});
             this.enterkey = game.input.keyboard.addKey(Phaser.Keyboard.ENTER);
         },
         update : function() {
@@ -366,7 +370,7 @@
               game.state.start('level', true, false);
           }
           else if (level == 3) {
-              this.leveldata = JSON.parse(game.cache.getText('level3'));// level 2
+              this.leveldata = JSON.parse(game.cache.getText('level3'));// level 3
               game.state.start('level', true, false);
           }
           else if (level > 3) {
@@ -380,12 +384,16 @@
         enemyHitsPlayer: function (player, enemy) {
             enemy.destroy();
             this.hitaudio.play();
+            var emitter = game.add.emitter(enemy.position.x, enemy.position.y, 100);
+            emitter.makeParticles('explosion');
+            emitter.killOnComplete = true;
+            emitter.start(true, 2000, null, 10);
+            this.fuel -= this.leveldata.enemyclash;
 
             var t = game.add.text(player.position.x, player.position.y, '- ' + this.leveldata.enemyclash, { fill: '#C48923'});
 
             var tw = game.add.tween(t).to( { y: -1 }, 1000, Phaser.Easing.Cubic.Out, true, 0, false);
             tw.onComplete.add(function() {
-                this.fuel -= this.leveldata.enemyclash;
                 game.world.remove(t)
             }, this);
 
@@ -427,6 +435,7 @@
             rocket.kill();
             enemy.destroy();
             this.hitaudio.play();
+            this.fuel += this.leveldata.enemyhit;
             // todo play explosion
             var emitter = game.add.emitter(enemy.position.x, enemy.position.y, 100);
             emitter.makeParticles('explosion');
@@ -437,7 +446,7 @@
 
             var tw = game.add.tween(t).to( { y: -1 }, 1000, Phaser.Easing.Cubic.Out, true, 0, false);
             tw.onComplete.add(function() {
-                this.fuel += this.leveldata.enemyhit;
+
                 game.world.remove(t)
             }, this);
         },
