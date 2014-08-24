@@ -468,7 +468,7 @@
             emitter.killOnComplete = true;
             emitter.start(true, 2000, null, 10);
 
-            var t = game.add.text(player.position.x, player.position.y, '+ ' + this.leveldata.playerhit, { fill: '#C48923'});
+            var t = game.add.text(player.position.x, player.position.y, '- ' + this.leveldata.playerhit, { fill: '#C48923'});
 
             var tw = game.add.tween(t).to( { y: -1 }, 1000, Phaser.Easing.Cubic.Out, true, 0, false);
             tw.onComplete.add(function() {
